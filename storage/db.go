@@ -7,7 +7,6 @@ import (
 	"go.mongodb.org/mongo-driver/mongo"
 	"go.mongodb.org/mongo-driver/mongo/options"
 	"load-balancing-simulator/utils"
-	"log"
 	"time"
 )
 
@@ -23,9 +22,8 @@ func OpenDatabase() *DB {
 	serverUrl := fmt.Sprintf("mongodb://%s:%s@%s:27017/", dbUser, dbPassword, dbURI)
 
 	client, err := mongo.NewClient(options.Client().ApplyURI(serverUrl))
-	if err != nil {
-		log.Fatal(err)
-	}
+	utils.CheckError(err, "Cannot connect to database")
+
 	ctx, _ := context.WithTimeout(context.Background(), 10*time.Second)
 	err = client.Connect(ctx)
 	utils.CheckError(err, "Database Client Connection Error")
@@ -36,21 +34,17 @@ func OpenDatabase() *DB {
 	return &db
 }
 
-func (db *DB) FindOpcodes(skip int64, limit int64) *mongo.Cursor {
+func (db *DB) FindOpcodes(blockNumber int64) *mongo.Cursor {
 	col := db.client.Database("balanceMeter").Collection("opcodes")
 	options := options.Find()
-	options.SetSkip(skip)
-	options.SetLimit(limit)
-
-	cursor, err := col.Find(context.TODO(), bson.D{}, options)
+	options.SetBatchSize(10000)
+	cursor, err := col.Find(context.TODO(), bson.M{ "blockNumber": blockNumber }, options)
 	utils.CheckError(err, "db.FindOpcodes() Error")
 
 	return cursor
 }
 
-func (db *DB) CountOpcodes() int64 {
-	col := db.client.Database("balanceMeter").Collection("opcodes")
-	count, err := col.CountDocuments(context.TODO(), bson.D {})
-	utils.CheckError(err, "db.CountOpcodes() Error")
-	return count
+// hard coded count
+func (db *DB) MaxBlockNumber() int64 {
+	return 7000000
 }

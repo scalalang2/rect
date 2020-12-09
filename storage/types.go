@@ -6,6 +6,7 @@ type Opcode struct {
 	ContractAddress string `json:”contractAddress,omitempty”`
 	Opcode string `json:”opcode,omitempty”`
 	ElapsedTime int64 `json:”elapsedTime,omitempty”`
+	WorkerId int
 }
 
 type Transition struct {
