@@ -47,3 +47,10 @@ func (db *DB) FindOpcodes(skip int64, limit int64) *mongo.Cursor {
 
 	return cursor
 }
+
+func (db *DB) CountOpcodes() int64 {
+	col := db.client.Database("balanceMeter").Collection("opcodes")
+	count, err := col.CountDocuments(context.TODO(), bson.D {})
+	utils.CheckError(err, "db.CountOpcodes() Error")
+	return count
+}
