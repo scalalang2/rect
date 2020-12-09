@@ -1,4 +1,4 @@
-module load-balancing-simulator
+module github.com/scalalang2/load-balancing-simulator
 
 go 1.13
 

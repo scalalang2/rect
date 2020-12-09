@@ -1,6 +1,6 @@
 package main
 
-import "load-balancing-simulator/reporter"
+import "github.com/scalalang2/load-balancing-simulator/reporter"
 
 func main() {
 	done := make(chan bool)
