@@ -2,8 +2,12 @@ package reporter
 
 import (
 	"context"
+	"encoding/csv"
 	"fmt"
 	"github.com/scalalang2/load-balancing-simulator/storage"
+	"github.com/scalalang2/load-balancing-simulator/utils"
+	"os"
+	"sync"
 	"time"
 )
 
@@ -15,19 +19,46 @@ const (
 	NumberOfWorkers = 10
 )
 
+func ReportToCSV(acc map[string]float64, cnt map[string]int64) {
+	file, err := os.Create("opcodeAvg.csv")
+	utils.CheckError(err, "failed to open opcodeAvg.csv file")
+	defer file.Close()
+
+	writer := csv.NewWriter(file)
+	defer writer.Flush()
+
+	for key, value := range acc {
+		data := []string { key, fmt.Sprintf("%f", value), fmt.Sprintf("%d", cnt[key])}
+		err := writer.Write(data)
+		utils.CheckError(err, "failed to write opcodeAvg.csv file")
+	}
+}
+
 func ReportAvgStd(done chan bool) {
 	fmt.Println("[AvgStdReporter] started")
+
+	accChannel := make(chan map[string]float64, 1)
+	cntChannel := make(chan map[string]int64, 1)
+	var wg sync.WaitGroup
+
 	pipeline := make(chan storage.Opcode, PipelineSize)
 	db := storage.OpenDatabase()
 
 	for i := 1; i <= NumberOfWorkers; i++ {
-		go doWork(i, db.MaxBlockNumber(), pipeline)
+		wg.Add(1)
+		go doWork(i, db.MaxBlockNumber(), pipeline, &wg)
 	}
-	go accumulator(pipeline)
+	go accumulator(pipeline, accChannel, cntChannel)
+	wg.Wait()
+	_acc := <-accChannel
+	_cnt := <-cntChannel
+	ReportToCSV(_acc, _cnt)
+	done <- true
 }
 
 // worker
-func doWork(workerId int, maxBlockNumber int64, pipeline chan<- storage.Opcode) {
+func doWork(workerId int, maxBlockNumber int64, pipeline chan<- storage.Opcode, wg *sync.WaitGroup) {
+	defer wg.Done()
 	var opcode storage.Opcode
 
 	fmt.Printf("worker %d ready\n", workerId)
@@ -47,7 +78,7 @@ func doWork(workerId int, maxBlockNumber int64, pipeline chan<- storage.Opcode) 
 
 // accumulator
 // formula: avg += (x - avg) / n;
-func accumulator(pipeline <-chan storage.Opcode) {
+func accumulator(pipeline <-chan storage.Opcode, accChannel chan map[string]float64, cntChannel chan map[string]int64) {
 	opcodeAvg := make(map[string]float64, 100)
 	opcodeCount := make(map[string]int64, 100)
 	receivedWorks := make(map[int]int64, NumberOfWorkers)
@@ -77,4 +108,7 @@ func accumulator(pipeline <-chan storage.Opcode) {
 			fmt.Printf("records: %d, acc elapsed time: [%ds]\n", i+1, endTime - startTime)
 		}
 	}
+
+	accChannel <- opcodeAvg
+	cntChannel <- opcodeCount
 }
