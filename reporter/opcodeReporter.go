@@ -14,9 +14,9 @@ import (
 const (
 	StartBlock = 5000000
 	SampleBlockRate = 25
-	PrintEpoch = 100000
+	PrintEpoch = 10000000
 	PipelineSize = 1000000
-	NumberOfWorkers = 10
+	NumberOfWorkers = 50
 )
 
 func ReportToCSV(acc map[string]float64, cnt map[string]int64) {
