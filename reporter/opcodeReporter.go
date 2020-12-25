@@ -50,6 +50,8 @@ func ReportAvgStd(done chan bool) {
 	}
 	go accumulator(pipeline, accChannel, cntChannel)
 	wg.Wait()
+	close(pipeline)
+	fmt.Println("[start to report csv file]")
 
 	_acc := <-accChannel
 	_cnt := <-cntChannel
