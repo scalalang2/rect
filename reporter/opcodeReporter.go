@@ -62,10 +62,10 @@ func doWork(workerId int, maxBlockNumber int64, pipeline chan<- storage.Opcode, 
 	var opcode storage.Opcode
 
 	fmt.Printf("worker %d ready\n", workerId)
-	db := storage.OpenDatabase()
 	blockNumber := int64(workerId) * SampleBlockRate + StartBlock
 
 	for blockNumber <= maxBlockNumber {
+		db := storage.OpenDatabase()
 		cursor := db.FindOpcodes(blockNumber)
 		for cursor.Next(context.TODO()) {
 			cursor.Decode(&opcode)
@@ -106,6 +106,9 @@ func accumulator(pipeline <-chan storage.Opcode, accChannel chan map[string]floa
 		if (i+1) % PrintEpoch == 0 {
 			endTime := time.Now().Unix()
 			fmt.Printf("records: %d, acc elapsed time: [%ds]\n", i+1, endTime - startTime)
+			for k,v := range opcodeAvg {
+				fmt.Printf("[%s]:%f, count : %d", k, v, opcodeCount[k])
+			}
 		}
 	}
 
