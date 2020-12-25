@@ -50,6 +50,7 @@ func ReportAvgStd(done chan bool) {
 	}
 	go accumulator(pipeline, accChannel, cntChannel)
 	wg.Wait()
+
 	_acc := <-accChannel
 	_cnt := <-cntChannel
 	ReportToCSV(_acc, _cnt)
@@ -64,17 +65,20 @@ func doWork(workerId int, maxBlockNumber int64, pipeline chan<- storage.Opcode, 
 	fmt.Printf("worker %d ready\n", workerId)
 	blockNumber := int64(workerId) * SampleBlockRate + StartBlock
 
+	db := storage.OpenDatabase()
+
 	for blockNumber <= maxBlockNumber {
-		db := storage.OpenDatabase()
 		cursor := db.FindOpcodes(blockNumber)
 		for cursor.Next(context.TODO()) {
-			cursor.Decode(&opcode)
+			err := cursor.Decode(&opcode)
+			utils.CheckError(err, "failed to decode opcode document.")
 			opcode.WorkerId = workerId
 			pipeline <- opcode
 		}
 		blockNumber = blockNumber + NumberOfWorkers * SampleBlockRate
-		storage.Close(db)
 	}
+
+	storage.Close(db)
 }
 
 // accumulator
@@ -82,7 +86,6 @@ func doWork(workerId int, maxBlockNumber int64, pipeline chan<- storage.Opcode, 
 func accumulator(pipeline <-chan storage.Opcode, accChannel chan map[string]float64, cntChannel chan map[string]int64) {
 	opcodeAvg := make(map[string]float64, 100)
 	opcodeCount := make(map[string]int64, 100)
-	receivedWorks := make(map[int]int64, NumberOfWorkers)
 
 	startTime := time.Now().Unix()
 
@@ -94,22 +97,13 @@ func accumulator(pipeline <-chan storage.Opcode, accChannel chan map[string]floa
 			opcodeCount[opcode.Opcode] = 0
 		}
 
-		_, doesExist = receivedWorks[opcode.WorkerId]
-		if !doesExist {
-			receivedWorks[opcode.WorkerId] = 0
-		}
-
 		opcodeCount[opcode.Opcode]++
 		opcodeAvg[opcode.Opcode] += (float64(opcode.ElapsedTime) - opcodeAvg[opcode.Opcode]) / float64(opcodeCount[opcode.Opcode])
-		receivedWorks[opcode.WorkerId]++
 
 		i++
 		if (i+1) % PrintEpoch == 0 {
 			endTime := time.Now().Unix()
 			fmt.Printf("records: %d, acc elapsed time: [%ds]\n", i+1, endTime - startTime)
-			for k,v := range opcodeAvg {
-				fmt.Printf("[%s]:%f, count : %d\n", k, v, opcodeCount[k])
-			}
 		}
 	}
 
