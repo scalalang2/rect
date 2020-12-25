@@ -73,6 +73,7 @@ func doWork(workerId int, maxBlockNumber int64, pipeline chan<- storage.Opcode, 
 			pipeline <- opcode
 		}
 		blockNumber = blockNumber + NumberOfWorkers * SampleBlockRate
+		storage.Close(db)
 	}
 }
 
@@ -107,7 +108,7 @@ func accumulator(pipeline <-chan storage.Opcode, accChannel chan map[string]floa
 			endTime := time.Now().Unix()
 			fmt.Printf("records: %d, acc elapsed time: [%ds]\n", i+1, endTime - startTime)
 			for k,v := range opcodeAvg {
-				fmt.Printf("[%s]:%f, count : %d", k, v, opcodeCount[k])
+				fmt.Printf("[%s]:%f, count : %d\n", k, v, opcodeCount[k])
 			}
 		}
 	}

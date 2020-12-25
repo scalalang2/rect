@@ -44,6 +44,11 @@ func (db *DB) FindOpcodes(blockNumber int64) *mongo.Cursor {
 	return cursor
 }
 
+func Close(db *DB) {
+	err := db.client.Disconnect(context.TODO())
+	utils.CheckError(err, "err occurred while disconnecting database.")
+}
+
 // hard coded count
 func (db *DB) MaxBlockNumber() int64 {
 	return 7000000
