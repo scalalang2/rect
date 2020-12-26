@@ -1,7 +1,7 @@
-# load balancing simulator
-The Load Balancing Simulator for Ethereum Sharding Environment
+# BalanceMeter
+The Efficient Load Balancer for Ethereum Sharding Environment
 
-## Load Balancing in Stateful Distributed System 
+## Motivation
 
 ## TO-DO
 * Calculate average and standard deviation of all opcodes.
