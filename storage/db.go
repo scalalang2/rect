@@ -44,6 +44,16 @@ func (db *DB) FindOpcodes(blockNumber int64) *mongo.Cursor {
 	return cursor
 }
 
+func (db *DB) FetchTransactions(blockNumber int64) *mongo.Cursor {
+	col := db.client.Database("balanceMeter").Collection("transactions")
+	options := options.Find()
+	options.SetBatchSize(10000)
+	cursor, err := col.Find(context.TODO(), bson.M{"blockNumber": blockNumber}, options)
+	utils.CheckError(err, "db.FetchTransactions() Error")
+
+	return cursor
+}
+
 func Close(db *DB) {
 	err := db.client.Disconnect(context.TODO())
 	utils.CheckError(err, "err occurred while disconnecting database.")

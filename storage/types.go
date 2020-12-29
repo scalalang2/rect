@@ -9,9 +9,12 @@ type Opcode struct {
 	WorkerId int
 }
 
-type Transition struct {
+type Transaction struct {
 	ElapsedTime int64 `json:”elapsedTime,omitempty”`
 	GasUsed int64 `json:”gasUsed,omitempty”`
+	GasPrice string `json:"gasPrice,omitempty"`
+	GasAmount int64 `json:"gasAmount,omitempty"`
+	Data string `json:"data,omitempty"`
 	Sender string `json:"sender,omitempty"`
 	ToAddress string `json:"sender,omitempty"`
 	Nonce int64 `json:"nonce,omitempty"`
