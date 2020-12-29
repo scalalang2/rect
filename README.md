@@ -1,5 +1,5 @@
 # BalanceMeter
-Transaction complexity-based account group allocation for load balancing in stateful ethereum sharding environments
+BalanceMeter: efficient load balancing algorithm with reduced cross-shard transactions in ethereum sharding environments
 
 ## Motivation
 
