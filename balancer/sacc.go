@@ -7,21 +7,70 @@ import (
 	"github.com/scalalang2/load-balancing-simulator/utils"
 )
 
+type BalanceInfo struct {
+	GasUsed int64
+	ElapsedTime int64
+}
+
 type SACC struct {
 	FromBlock int
 	ToBlock int
 	BlockEpoch int
 	NumberOfShards int
 	GasLimit int
-	CollationUtils [][]int64
+	CollationUtils [][]BalanceInfo
+}
+
+func FindMinMax(slice []BalanceInfo) (int64, int64) {
+	min := int64(10000000)
+	max := int64(0)
+	for i := 0; i < len(slice); i++ {
+		if min > slice[i].GasUsed {
+			min = slice[i].GasUsed
+		}
+
+		if max < slice[i].GasUsed {
+			max = slice[i].GasUsed
+		}
+	}
+
+	return min, max
 }
 
 func (s *SACC) Init() {
 	totalTests := (s.ToBlock - s.FromBlock)/20
-	s.CollationUtils = make([][]int64, totalTests)
+	s.CollationUtils = make([][]BalanceInfo, totalTests)
 	for i := 0; i < totalTests; i++ {
-		s.CollationUtils[i] = make([]int64, s.NumberOfShards)
+		s.CollationUtils[i] = make([]BalanceInfo, s.NumberOfShards)
 	}
+}
+
+func (s *SACC) GetUtilization() float64 {
+	total := (s.ToBlock - s.FromBlock)/20
+	var utilization float64
+
+	for i := 0; i< total; i++ {
+		var sum int64
+		for j := 0; j < s.NumberOfShards; j++ {
+			sum += s.CollationUtils[i][j].GasUsed
+		}
+
+		currentUtilization := float64(sum) / float64(s.GasLimit * s.NumberOfShards)
+		utilization += (currentUtilization - utilization) / float64(i+1)
+	}
+
+	return utilization
+}
+
+func (s *SACC) GetMakespan() float64 {
+	total := (s.ToBlock - s.FromBlock)/20
+	var makespan float64
+	for i := 0; i < total; i++ {
+		min, max := FindMinMax(s.CollationUtils[i])
+		makespan += (float64(max-min)-makespan) / float64(i+1)
+	}
+
+	return makespan
 }
 
 func (s *SACC) StartExperiment() {
@@ -37,8 +86,8 @@ func (s *SACC) StartExperiment() {
 
 			shardNum := utils.GetShardSaccAddress(transaction.ToAddress, s.NumberOfShards)
 			// if gas limit hit.
-			if s.CollationUtils[testNumber][shardNum] < int64(s.GasLimit) {
-				s.CollationUtils[testNumber][shardNum] += transaction.GasUsed
+			if s.CollationUtils[testNumber][shardNum].GasUsed + transaction.GasUsed < int64(s.GasLimit) {
+				s.CollationUtils[testNumber][shardNum].GasUsed += transaction.GasUsed
 			}
 		}
 
@@ -47,4 +96,7 @@ func (s *SACC) StartExperiment() {
 			testNumber += 1
 		}
 	}
+
+	fmt.Printf("[S-ACC] Collation Utilization : %.3f%%\n", s.GetUtilization() * 100)
+	fmt.Printf("[S-ACC] Normalized Makespan: %.3f\n", s.GetMakespan())
 }
