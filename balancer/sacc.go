@@ -10,6 +10,8 @@ import (
 type BalanceInfo struct {
 	GasUsed int64
 	ElapsedTime int64
+	SenderShard int
+	ReceiverShard int
 }
 
 type SACC struct {
@@ -88,11 +90,11 @@ func (s *SACC) StartExperiment() {
 			// if gas limit hit.
 			if s.CollationUtils[testNumber][shardNum].GasUsed + transaction.GasUsed < int64(s.GasLimit) {
 				s.CollationUtils[testNumber][shardNum].GasUsed += transaction.GasUsed
+				s.CollationUtils[testNumber][shardNum].ElapsedTime += transaction.ElapsedTime
 			}
 		}
 
 		if (i+1) % s.BlockEpoch == 0 {
-			fmt.Println(s.CollationUtils[testNumber])
 			testNumber += 1
 		}
 	}
