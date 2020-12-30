@@ -10,8 +10,8 @@ import (
 type BalanceInfo struct {
 	GasUsed int64
 	ElapsedTime int64
-	SenderShard int
-	ReceiverShard int
+	Transactions int
+	CrossShards int
 }
 
 type SACC struct {
@@ -75,6 +75,35 @@ func (s *SACC) GetMakespan() float64 {
 	return makespan
 }
 
+func (s *SACC) GetThroughput() float64 {
+	total := (s.ToBlock - s.FromBlock)/20
+	var avg float64
+
+	for i := 0; i < total; i++ {
+		var sum float64
+		for j := 0; j < s.NumberOfShards; j++ {
+			sum += float64(s.CollationUtils[i][j].Transactions)
+		}
+
+		avg += (sum - avg) / float64(i+1)
+	}
+
+	return avg
+}
+
+func (s *SACC) GetCrossShards() float64 {
+	total := (s.ToBlock - s.FromBlock)/20
+	var sum float64
+
+	for i := 0; i < total; i++ {
+		for j := 0; j < s.NumberOfShards; j++ {
+			sum += float64(s.CollationUtils[i][j].CrossShards)
+		}
+	}
+
+	return sum/float64(total)
+}
+
 func (s *SACC) StartExperiment() {
 	db := storage.OpenDatabase()
 	var transaction storage.Transaction
@@ -87,10 +116,24 @@ func (s *SACC) StartExperiment() {
 			utils.CheckError(err, "failed to decode transaction data")
 
 			shardNum := utils.GetShardSaccAddress(transaction.ToAddress, s.NumberOfShards)
-			// if gas limit hit.
-			if s.CollationUtils[testNumber][shardNum].GasUsed + transaction.GasUsed < int64(s.GasLimit) {
-				s.CollationUtils[testNumber][shardNum].GasUsed += transaction.GasUsed
-				s.CollationUtils[testNumber][shardNum].ElapsedTime += transaction.ElapsedTime
+			senderShard := utils.GetShardSaccAddress(transaction.Sender, s.NumberOfShards)
+
+			// select shard.
+			sd := &s.CollationUtils[testNumber][shardNum]
+			conflictSd := &s.CollationUtils[testNumber][senderShard]
+			limited := sd.GasUsed + transaction.GasUsed < int64(s.GasLimit)
+			if testNumber > 0 {
+				prevSd := s.CollationUtils[testNumber-1][shardNum]
+				limited = (sd.GasUsed + transaction.GasUsed + int64(prevSd.CrossShards * 21000)) < int64(s.GasLimit)
+			}
+
+			if limited {
+				sd.GasUsed += transaction.GasUsed
+				sd.ElapsedTime += transaction.ElapsedTime
+				sd.Transactions += 1
+				if shardNum != senderShard {
+					conflictSd.CrossShards += 1
+				}
 			}
 		}
 
@@ -101,4 +144,6 @@ func (s *SACC) StartExperiment() {
 
 	fmt.Printf("[S-ACC] Collation Utilization : %.3f%%\n", s.GetUtilization() * 100)
 	fmt.Printf("[S-ACC] Normalized Makespan: %.3f\n", s.GetMakespan())
+	fmt.Printf("[S-ACC] Average Transaction Throuput: %.3f\n", s.GetThroughput())
+	fmt.Printf("[S-ACC] Average Cross-shard txes: %.3f\n", s.GetCrossShards())
 }
