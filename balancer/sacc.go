@@ -8,20 +8,8 @@ import (
 	"strconv"
 )
 
-type BalanceInfo struct {
-	GasUsed int64
-	ElapsedTime int64
-	Transactions int
-	CrossShards int
-}
-
 type SACC struct {
-	FromBlock int
-	ToBlock int
-	BlockEpoch int
-	NumberOfShards int
-	GasLimit int
-	TotalTests int
+	Context ExpContext
 	WithCSTx bool
 	CollationUtils [][]BalanceInfo
 }
@@ -44,23 +32,22 @@ func FindMinMax(slice []BalanceInfo) (int64, int64) {
 
 func (s *SACC) Init(withCSTx bool) {
 	s.WithCSTx = withCSTx
-	s.TotalTests = (s.ToBlock - s.FromBlock)/s.NumberOfShards
-	s.CollationUtils = make([][]BalanceInfo, s.TotalTests)
-	for i := 0; i < s.TotalTests; i++ {
-		s.CollationUtils[i] = make([]BalanceInfo, s.NumberOfShards)
+	s.CollationUtils = make([][]BalanceInfo, s.Context.CollationCycle)
+	for i := 0; i < s.Context.CollationCycle; i++ {
+		s.CollationUtils[i] = make([]BalanceInfo, s.Context.NumberOfShards)
 	}
 }
 
 func (s *SACC) GetUtilization() float64 {
 	var utilization float64
 
-	for i := 0; i< s.TotalTests; i++ {
+	for i := 0; i< s.Context.CollationCycle; i++ {
 		var sum int64
-		for j := 0; j < s.NumberOfShards; j++ {
+		for j := 0; j < s.Context.NumberOfShards; j++ {
 			sum += s.CollationUtils[i][j].GasUsed
 		}
 
-		currentUtilization := float64(sum) / float64(s.GasLimit * s.NumberOfShards)
+		currentUtilization := float64(sum) / float64(s.Context.GasLimit * s.Context.NumberOfShards)
 		utilization += (currentUtilization - utilization) / float64(i+1)
 	}
 
@@ -69,7 +56,7 @@ func (s *SACC) GetUtilization() float64 {
 
 func (s *SACC) GetMakespan() float64 {
 	var makespan float64
-	for i := 0; i < s.TotalTests; i++ {
+	for i := 0; i < s.Context.CollationCycle; i++ {
 		min, max := FindMinMax(s.CollationUtils[i])
 		makespan += (float64(max-min)-makespan) / float64(i+1)
 	}
@@ -80,9 +67,9 @@ func (s *SACC) GetMakespan() float64 {
 func (s *SACC) GetThroughput() float64 {
 	var avg float64
 
-	for i := 0; i < s.TotalTests; i++ {
+	for i := 0; i < s.Context.CollationCycle; i++ {
 		var sum float64
-		for j := 0; j < s.NumberOfShards; j++ {
+		for j := 0; j < s.Context.NumberOfShards; j++ {
 			sum += float64(s.CollationUtils[i][j].Transactions)
 		}
 
@@ -93,16 +80,15 @@ func (s *SACC) GetThroughput() float64 {
 }
 
 func (s *SACC) GetCrossShards() float64 {
-	total := (s.ToBlock - s.FromBlock)/20
 	var sum float64
 
-	for i := 0; i < total; i++ {
-		for j := 0; j < s.NumberOfShards; j++ {
+	for i := 0; i < s.Context.CollationCycle; i++ {
+		for j := 0; j < s.Context.NumberOfShards; j++ {
 			sum += float64(s.CollationUtils[i][j].CrossShards)
 		}
 	}
 
-	return sum/float64(total)
+	return sum/float64(s.Context.CollationCycle)
 }
 
 func (s *SACC) StartExperiment() {
@@ -110,23 +96,24 @@ func (s *SACC) StartExperiment() {
 	var transaction storage.Transaction
 
 	testNumber := 0
-	for i := s.FromBlock; i < s.ToBlock; i++ {
+	toBlock := s.Context.FromBlock + (s.Context.CollationCycle * s.Context.BlockEpoch)
+	for i := s.Context.FromBlock; i < toBlock; i++ {
 		cursor := db.FetchTransactions(int64(i))
 		for cursor.Next(context.TODO()) {
 			err := cursor.Decode(&transaction)
 			utils.CheckError(err, "failed to decode transaction data")
 
-			shardNum := utils.GetShardSaccAddress(transaction.ToAddress, s.NumberOfShards)
-			senderShard := utils.GetShardSaccAddress(transaction.Sender, s.NumberOfShards)
+			shardNum := utils.GetShardSaccAddress(transaction.ToAddress, s.Context.NumberOfShards)
+			senderShard := utils.GetShardSaccAddress(transaction.Sender, s.Context.NumberOfShards)
 
 			// select shard.
 			sd := &s.CollationUtils[testNumber][shardNum]
 			conflictSd := &s.CollationUtils[testNumber][senderShard]
-			limited := sd.GasUsed + transaction.GasUsed < int64(s.GasLimit)
+			limited := sd.GasUsed + transaction.GasUsed < int64(s.Context.GasLimit)
 
 			if s.WithCSTx && testNumber > 0 {
 				prevSd := s.CollationUtils[testNumber-1][shardNum]
-				limited = (sd.GasUsed + transaction.GasUsed + int64(prevSd.CrossShards * 42000)) < int64(s.GasLimit)
+				limited = (sd.GasUsed + transaction.GasUsed + int64(prevSd.CrossShards * 42000)) < int64(s.Context.GasLimit)
 			}
 
 			if limited {
@@ -139,7 +126,7 @@ func (s *SACC) StartExperiment() {
 			}
 		}
 
-		if (i+1) % s.BlockEpoch == 0 {
+		if (i+1) % s.Context.BlockEpoch == 0 {
 			testNumber += 1
 		}
 	}
@@ -151,17 +138,17 @@ func (s *SACC) StartExperiment() {
 }
 
 func (s *SACC) SaveToCSV(filename string){
-	data := make([][]string, s.TotalTests + 1)
-	for i := 0; i < s.TotalTests + 1; i++ {
-		data[i] = make([]string, s.NumberOfShards)
+	data := make([][]string, s.Context.CollationCycle + 1)
+	for i := 0; i < s.Context.CollationCycle + 1; i++ {
+		data[i] = make([]string, s.Context.NumberOfShards)
 	}
 
-	for j := 0; j < s.NumberOfShards; j++ {
+	for j := 0; j < s.Context.NumberOfShards; j++ {
 		data[0][j] = "shard " + strconv.Itoa(j)
 	}
 
-	for i := 1; i <= s.TotalTests; i++ {
-		for j := 0; j < s.NumberOfShards; j++ {
+	for i := 1; i <= s.Context.CollationCycle; i++ {
+		for j := 0; j < s.Context.NumberOfShards; j++ {
 			data[i][j] = strconv.FormatInt(s.CollationUtils[i-1][j].GasUsed, 10)
 		}
 	}

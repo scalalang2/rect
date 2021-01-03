@@ -5,13 +5,15 @@ import (
 )
 
 func main() {
-	saccBalancer := balancer.SACC{
+	context := balancer.ExpContext{
 		FromBlock: 6000000,
-		ToBlock: 6001000,
+		CollationCycle: 100,
 		BlockEpoch: 20,
 		NumberOfShards: 20,
 		GasLimit: 10000000,
 	}
+
+	saccBalancer := balancer.SACC { Context: context }
 
 	saccBalancer.Init(false)
 	saccBalancer.StartExperiment()
