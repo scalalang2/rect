@@ -13,6 +13,11 @@ func main() {
 		GasLimit: 10000000,
 	}
 
-	saccBalancer.Init()
+	saccBalancer.Init(false)
 	saccBalancer.StartExperiment()
+	saccBalancer.SaveToCSV("sacc_without_cstx.csv")
+
+	saccBalancer.Init(true)
+	saccBalancer.StartExperiment()
+	saccBalancer.SaveToCSV("sacc_with_cstx.csv")
 }

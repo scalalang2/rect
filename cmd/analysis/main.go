@@ -10,9 +10,9 @@ import (
 func main() {
 	var tx storage.Transaction
 
-	AccountGroup := 20
+	AccountGroup := 100
 	FromBlock := 7000000
-	ToBlock := 7000020
+	ToBlock := 7000050
 	txList := make([]uint64, AccountGroup)
 	gasList := make([]uint64, AccountGroup)
 
@@ -30,6 +30,6 @@ func main() {
 	}
 
 	for i := 0; i < AccountGroup; i++{
-		fmt.Printf("[%d] tx: %d, gas: %d\n", i, txList[i], gasList[i])
+		fmt.Printf("(%d, %d)\n", i, txList[i])
 	}
 }
