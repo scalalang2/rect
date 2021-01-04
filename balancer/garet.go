@@ -65,7 +65,6 @@ func (g *GARET) StartExperiment() {
 			fromShard := &g.CollationUtils[utilNumber][fromShardNum]
 
 			notLimited := toShard.GasUsed + tx.GasUsed < int64(g.Context.GasLimit)
-			g.GasUsedAcc[toAccGroup][utilNumber % g.Ncol] += int(tx.GasUsed)
 
 			// consider cross-shard tx
 			if g.WithCSTx && utilNumber > 0 {
@@ -74,6 +73,7 @@ func (g *GARET) StartExperiment() {
 			}
 
 			if notLimited {
+				g.GasUsedAcc[toAccGroup][utilNumber % g.Ncol] += int(tx.GasUsed)
 				toShard.GasUsed += tx.GasUsed
 				toShard.Transactions += 1
 				if toShardNum != fromShardNum {
@@ -84,10 +84,9 @@ func (g *GARET) StartExperiment() {
 
 		if (blockNumber + 1) % g.Context.BlockEpoch == 0 {
 			utilNumber += 1
-			if utilNumber % g.Ncol == 0 {
+			if utilNumber % (g.Ncol+1) == 0 {
 				g.AccGroupRelocation()
 			}
-			fmt.Println(g.CollationUtils[utilNumber-1])
 		}
 	}
 }
@@ -131,16 +130,16 @@ func (g *GARET) AccGroupRelocation() {
 		acc, _ := Qa.Pop()
 		gasA := g.GasPredAcc[acc.(int)]
 
-		min := g.Context.GasLimit
+		min := 99999999999
 		minIndex := 0
 		for i := 0; i < g.Context.NumberOfShards; i++ {
 			if g.GasPredShard[i] < min {
 				min = g.GasPredShard[i]
-				g.GasPredShard[i] += gasA
 				minIndex = i
 			}
 		}
 
+		g.GasPredShard[minIndex] += gasA
 		g.MappingTable[acc.(int)] = minIndex
 	}
 
