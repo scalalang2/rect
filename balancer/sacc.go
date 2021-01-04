@@ -109,16 +109,15 @@ func (s *SACC) StartExperiment() {
 			// select shard.
 			sd := &s.CollationUtils[testNumber][shardNum]
 			conflictSd := &s.CollationUtils[testNumber][senderShard]
-			limited := sd.GasUsed + transaction.GasUsed < int64(s.Context.GasLimit)
+			notLimited := sd.GasUsed + transaction.GasUsed < int64(s.Context.GasLimit)
 
 			if s.WithCSTx && testNumber > 0 {
 				prevSd := s.CollationUtils[testNumber-1][shardNum]
-				limited = (sd.GasUsed + transaction.GasUsed + int64(prevSd.CrossShards * 42000)) < int64(s.Context.GasLimit)
+				notLimited = (sd.GasUsed + transaction.GasUsed + int64(prevSd.CrossShards * s.Context.GasCrossShardTx)) < int64(s.Context.GasLimit)
 			}
 
-			if limited {
+			if notLimited {
 				sd.GasUsed += transaction.GasUsed
-				sd.ElapsedTime += transaction.ElapsedTime
 				sd.Transactions += 1
 				if shardNum != senderShard {
 					conflictSd.CrossShards += 1

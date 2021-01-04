@@ -17,7 +17,12 @@ garet:
 	@echo "Done building."
 	@echo "Run "$(GOBIN)/garet" to start"
 
-garet:
+balanceMeter:
 	$(GOBUILD) -o $(GOBIN)/balanceMeter ./cmd/balanceMeter/
 	@echo "Done building."
 	@echo "Run "$(GOBIN)/balanceMeter" to start"
+
+analysis:
+	$(GOBUILD) -o $(GOBIN)/analysis ./cmd/analysis/
+	@echo "Done building."
+	@echo "Run "$(GOBIN)/analysis" to start"

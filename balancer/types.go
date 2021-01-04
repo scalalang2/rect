@@ -6,11 +6,11 @@ type ExpContext struct {
 	BlockEpoch int
 	NumberOfShards int
 	GasLimit int
+	GasCrossShardTx int
 }
 
 type BalanceInfo struct {
 	GasUsed int64
-	ElapsedTime int64
 	Transactions int
 	CrossShards int
 }

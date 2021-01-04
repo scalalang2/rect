@@ -10,7 +10,8 @@ func main() {
 		CollationCycle: 100,
 		BlockEpoch: 20,
 		NumberOfShards: 20,
-		GasLimit: 10000000,
+		GasLimit: 12000000,
+		GasCrossShardTx: 42000,
 	}
 
 	saccBalancer := balancer.SACC { Context: context }
