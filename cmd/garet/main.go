@@ -20,4 +20,9 @@ func main() {
 
 	garetBalancer.Init(false)
 	garetBalancer.StartExperiment()
+	garetBalancer.SaveToCSV("garet_without_cs.csv")
+
+	garetBalancer.Init(true)
+	garetBalancer.StartExperiment()
+	garetBalancer.SaveToCSV("garet_with_cs.csv")
 }

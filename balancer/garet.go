@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/scalalang2/load-balancing-simulator/storage"
 	"github.com/scalalang2/load-balancing-simulator/utils"
+	"strconv"
 )
 
 type GARET struct {
@@ -64,6 +65,7 @@ func (g *GARET) StartExperiment() {
 			fromShard := &g.CollationUtils[utilNumber][fromShardNum]
 
 			notLimited := toShard.GasUsed + tx.GasUsed < int64(g.Context.GasLimit)
+			g.GasUsedAcc[toAccGroup][utilNumber % g.Ncol] += int(tx.GasUsed)
 
 			// consider cross-shard tx
 			if g.WithCSTx && utilNumber > 0 {
@@ -72,7 +74,6 @@ func (g *GARET) StartExperiment() {
 			}
 
 			if notLimited {
-				g.GasUsedAcc[toAccGroup][utilNumber % g.Ncol] += int(tx.GasUsed)
 				toShard.GasUsed += tx.GasUsed
 				toShard.Transactions += 1
 				if toShardNum != fromShardNum {
@@ -89,6 +90,25 @@ func (g *GARET) StartExperiment() {
 			fmt.Println(g.CollationUtils[utilNumber-1])
 		}
 	}
+}
+
+func (g *GARET) SaveToCSV(filename string) {
+	data := make([][]string, g.Context.CollationCycle + 1)
+	for i := 0; i < g.Context.CollationCycle + 1; i++ {
+		data[i] = make([]string, g.Context.NumberOfShards)
+	}
+
+	for j := 0; j < g.Context.NumberOfShards; j++ {
+		data[0][j] = "shard " + strconv.Itoa(j)
+	}
+
+	for i := 1; i <= g.Context.CollationCycle; i++ {
+		for j := 0; j < g.Context.NumberOfShards; j++ {
+			data[i][j] = strconv.FormatInt(g.CollationUtils[i-1][j].GasUsed, 10)
+		}
+	}
+
+	utils.ReportToCSV(filename, data)
 }
 
 func (g *GARET) AccGroupRelocation() {
