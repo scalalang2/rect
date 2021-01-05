@@ -2,7 +2,6 @@ package balancer
 
 import (
 	"context"
-	"fmt"
 	"github.com/scalalang2/load-balancing-simulator/storage"
 	"github.com/scalalang2/load-balancing-simulator/utils"
 	"strconv"
@@ -130,7 +129,7 @@ func (g *GARET) AccGroupRelocation() {
 		acc, _ := Qa.Pop()
 		gasA := g.GasPredAcc[acc.(int)]
 
-		min := 99999999999
+		min := 1 << 32 - 1 // max value of integer.
 		minIndex := 0
 		for i := 0; i < g.Context.NumberOfShards; i++ {
 			if g.GasPredShard[i] < min {
